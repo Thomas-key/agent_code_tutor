@@ -1,0 +1,10 @@
+{
+  "name": "editor-api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "把编辑器暴露成 agent 可调用的 JSONL API —— 与具体 agent 实现无关",
+  "main": "src/dev-server.js",
+  "scripts": {
+    "dev": "node src/dev-server.js"
+  }
+}
