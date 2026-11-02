@@ -34,7 +34,7 @@ function createDispatch({ registry, version, viewFor, getToken }) {
       if (!expected) {
         return {
           ok: false,
-          error: { code: 'op-failed', message: '工作区还没生成会话 token(设置里 editorApi.conversationToken 是空的)' },
+          error: { code: 'op-failed', message: '工作区还没生成会话 token(设置里 tutorApi.conversationToken 是空的)' },
         };
       }
       // 记住这条连接"属于"哪个会话 —— 推送时按它找

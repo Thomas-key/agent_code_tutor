@@ -14,7 +14,7 @@ Claude Code、或者你自己写的脚本一视同仁。
 每个工作区只有一个 token,存在**工作区设置**里:
 
 ```
-editorApi.conversationToken
+tutorApi.conversationToken
 ```
 
 第一次激活扩展时,如果它为空,扩展会生成一个 8 位十六进制值并写进
@@ -363,7 +363,7 @@ token 一次性、60 秒过期、路径必须一致。**内容不用重发** —
 5. 收到 `op-failed` 时读 `message`,那是给人看的、具体的说明
 
 ```js
-const TOKEN = process.env.EDITOR_API_TOKEN ?? 'test';
+const TOKEN = process.env.TUTOR_API_TOKEN ?? 'test';
 const socket = net.connect(41890, '127.0.0.1');
 socket.write(JSON.stringify({ id: 1, token: TOKEN, op: 'ping' }) + '\n');
 ```

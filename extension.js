@@ -17,7 +17,7 @@ let output = null;
 
 /** 扩展入口:VS Code 激活时调用一次。 */
 function activate(context) {
-  output = vscode.window.createOutputChannel('Editor API');
+  output = vscode.window.createOutputChannel('Tutor API');
   context.subscriptions.push(output);
 
   // 感知的另一半:人做了什么。挂上就能被 scene/events 读到。
@@ -30,12 +30,12 @@ function activate(context) {
   registerAll(registry);
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('editorApi.confirm', confirmTurn),
-    vscode.commands.registerCommand('editorApi.abort', abortTurn),
-    vscode.commands.registerCommand('editorApi.ask', askAgentFromEditor),
-    vscode.commands.registerCommand('editorApi.askFile', askFile),
-    vscode.commands.registerCommand('editorApi.primary', primaryAction),
-    vscode.commands.registerCommand('editorApi.secondary', secondaryAction),
+    vscode.commands.registerCommand('tutorApi.confirm', confirmTurn),
+    vscode.commands.registerCommand('tutorApi.abort', abortTurn),
+    vscode.commands.registerCommand('tutorApi.ask', askAgentFromEditor),
+    vscode.commands.registerCommand('tutorApi.askFile', askFile),
+    vscode.commands.registerCommand('tutorApi.primary', primaryAction),
+    vscode.commands.registerCommand('tutorApi.secondary', secondaryAction),
   );
 
   bridge = createBridge({
@@ -45,7 +45,7 @@ function activate(context) {
       version: VERSION,
       viewFor,
       // 每次请求现读:用户在设置里改了 token,立刻生效
-      getToken: () => vscode.workspace.getConfiguration('editorApi').get('conversationToken'),
+      getToken: () => vscode.workspace.getConfiguration('tutorApi').get('conversationToken'),
     }),
   });
 
@@ -66,7 +66,7 @@ function activate(context) {
  * 为什么是 token 而不是固定端口:多开时靠它把"人说的话"送到对的会话。
  */
 function ensureConversationToken() {
-  const config = vscode.workspace.getConfiguration('editorApi');
+  const config = vscode.workspace.getConfiguration('tutorApi');
   const current = config.get('conversationToken');
   if (typeof current === 'string' && current.trim()) {
     log(`会话 token:${current}`);
@@ -103,7 +103,7 @@ async function askAgentFromEditor() {
   });
   if (!text || !text.trim()) return;
 
-  const token = vscode.workspace.getConfiguration('editorApi').get('conversationToken');
+  const token = vscode.workspace.getConfiguration('tutorApi').get('conversationToken');
   statusbar.enqueue({
     event: 'ask',
     text: text.trim(),
@@ -115,7 +115,7 @@ async function askAgentFromEditor() {
 }
 
 function currentToken() {
-  return vscode.workspace.getConfiguration('editorApi').get('conversationToken');
+  return vscode.workspace.getConfiguration('tutorApi').get('conversationToken');
 }
 
 /**

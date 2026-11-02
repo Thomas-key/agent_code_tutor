@@ -1,10 +1,10 @@
-# editor-api
+# tutor-api
 
 把编辑器暴露成 **agent 可调用的 API**。任何 agent(DSH、Codex、Claude Code、自己写的脚本)
 都能接入 —— 这个项目本身**不认识任何 agent**。
 
 ```
-agent 客户端 ──(JSONL over TCP)──▶ editor-api ──▶ 编辑器
+agent 客户端 ──(JSONL over TCP)──▶ tutor-api ──▶ 编辑器
                       ▲                    │
                       └──── 推送(无 id)────┘
 ```
@@ -59,7 +59,7 @@ agent 客户端 ──(JSONL over TCP)──▶ editor-api ──▶ 编辑器
 
 ## 跑
 
-装成扩展(软连接到扩展目录),Reload Window 即可。它会监听 `127.0.0.1:41890`。
+装成扩展即可。它会默认监听 `127.0.0.1:41890`。
 
 ```bash
 # 不带 token 会被拒

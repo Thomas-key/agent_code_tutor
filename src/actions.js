@@ -7,7 +7,7 @@ const { markChanged } = require('./present');
  * 执行:改编辑器里的内容。
  *
  * 三条铁律:
- *   ① 只走 editor API(WorkspaceEdit),绝不 fs.writeFile ——
+ *   ① 只走 Tutor API(WorkspaceEdit),绝不 fs.writeFile ——
  *      否则不进 undo 栈、文档版本号不涨、dirty 也不亮
  *   ② 每次写之前 markSelfAction() —— 我们自己的动静不能被记成"人干的"
  *   ③ 不抢焦点:写不等于"让人看",要看请显式调 open

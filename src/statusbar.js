@@ -54,7 +54,7 @@ function refresh() {
     primaryItem.text = '$(debug-continue) 继续';
     primaryItem.tooltip = pending > 0 ? `发出去并继续(${pending} 条问话)` : '继续(agent 在等你)';
     secondaryItem.text = '$(debug-pause) 暂停';
-    secondaryItem.command = 'editorApi.secondary';
+    secondaryItem.command = 'tutorApi.secondary';
     secondaryItem.tooltip = '撤回这一拍的写入';
   } else {
     primaryItem.text = '$(bell) 唤醒';
@@ -62,7 +62,7 @@ function refresh() {
     // 没有可取消的东西 —— 状态栏没有 disabled,只能让它按了没反应
     if (pending > 0) {
       secondaryItem.text = '$(close) 取消';
-      secondaryItem.command = 'editorApi.secondary';
+      secondaryItem.command = 'tutorApi.secondary';
       secondaryItem.tooltip = `清掉攒着的 ${pending} 条问话`;
     } else {
       secondaryItem.text = '$(circle-slash) 取消';
@@ -89,9 +89,9 @@ function takeQueue() {
 function create({ push, abort }) {
   deps = { push, abort };
 
-  askItem = make('$(comment-discussion) 询问 agent', 'editorApi.askFile', '问这个文件');
-  primaryItem = make('$(bell) 唤醒', 'editorApi.primary', '唤醒 agent');
-  secondaryItem = make('$(circle-slash) 取消', 'editorApi.secondary', '没有攒着的东西可取消');
+  askItem = make('$(comment-discussion) 询问 agent', 'tutorApi.askFile', '问这个文件');
+  primaryItem = make('$(bell) 唤醒', 'tutorApi.primary', '唤醒 agent');
+  secondaryItem = make('$(circle-slash) 取消', 'tutorApi.secondary', '没有攒着的东西可取消');
 
   handoff.onWaitingChange(() => refresh());
   refresh();

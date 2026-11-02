@@ -121,14 +121,14 @@ function createClient(socket, token = 'test') {
  *
  *   node examples/client.js 41890 ping
  *   node examples/client.js 41890 scene
- *   EDITOR_API_TOKEN=test node examples/client.js 41890 read
+ *   TUTOR_API_TOKEN=test node examples/client.js 41890 read
  *
- * token 从环境变量 `EDITOR_API_TOKEN` 读,默认 `test`(和工作区设置里的一致才能通)。
+ * token 从环境变量 `TUTOR_API_TOKEN` 读,默认 `test`(和工作区设置里的一致才能通)。
  */
 async function main() {
   const port = Number(process.argv[2] || 41890);
   const op = process.argv[3] || 'ping';
-  const token = process.env.EDITOR_API_TOKEN ?? 'test';
+  const token = process.env.TUTOR_API_TOKEN ?? 'test';
 
   const socket = await connect(port);
   const client = createClient(socket, token);
