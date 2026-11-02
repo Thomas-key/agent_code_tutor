@@ -60,6 +60,14 @@
           "default": "",
           "scope": "resource",
           "markdownDescription": "会话身份。扩展启动时如果为空会自动生成一个并写回**工作区设置**。harness插件要带同一个值,推送才会发给它。改了这个,客户端那边也要跟着改。"
+        },
+        "tutorApi.port": {
+          "type": "integer",
+          "default": 41890,
+          "minimum": 1024,
+          "maximum": 65535,
+          "scope": "machine-overridable",
+          "markdownDescription": "监听端口。默认 41890。**端口被占用时改这里**,并让 DSH 侧插件的 `port` 设置也改成同一个值 —— 两边连不上通常就是这个。"
         }
       }
     },

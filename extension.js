@@ -10,7 +10,7 @@ const handoff = require('./src/handoff');
 const statusbar = require('./src/statusbar');
 
 /** 和已装的 agent-tutor(41888)错开:两个扩展能同时跑着比。 */
-const PORT = 41890;
+const DEFAULT_PORT = 41890;
 
 let bridge = null;
 let output = null;
@@ -38,8 +38,9 @@ function activate(context) {
     vscode.commands.registerCommand('tutorApi.secondary', secondaryAction),
   );
 
+  const port = getPort();
   bridge = createBridge({
-    port: PORT,
+    port,
     dispatch: createDispatch({
       registry,
       version: VERSION,
@@ -56,8 +57,23 @@ function activate(context) {
 
   bridge
     .listen()
-    .then((port) => log(`监听 127.0.0.1:${port} · 已登记 op:${registry.names().join(', ')}`))
-    .catch((error) => log(`起不来:${error.message}`));
+    .then((actual) => log(`监听 127.0.0.1:${actual} · 已登记 op:${registry.names().join(', ')}`))
+    .catch((error) => {
+      log(`起不来:${error.message}`);
+      // 只写日志等于没告诉用户 —— 端口冲突必须弹出可见提示,并且能一键去改
+      if (String(error.message).includes('EADDRINUSE')) {
+        vscode.window
+          .showErrorMessage(
+            `端口 ${port} 被占用,Tutor API 起不来。改一下设置 tutorApi.port(DSH 侧插件也要改成同一个值)。`,
+            '打开设置',
+          )
+          .then((choice) => {
+            if (choice === '打开设置') {
+              vscode.commands.executeCommand('workbench.action.openSettings', 'tutorApi.port');
+            }
+          });
+      }
+    });
 }
 
 /**
@@ -112,6 +128,13 @@ async function askAgentFromEditor() {
     quote: quote.slice(0, 400),
   });
   log(`已排队:问第 ${sel.start.line + 1} 行(点继续/唤醒才发)`);
+}
+
+/** 当前监听端口:设置里改了立刻生效(下次激活)。 */
+function getPort() {
+  const configured = vscode.workspace.getConfiguration('tutorApi').get('port');
+  const port = Number(configured);
+  return Number.isInteger(port) && port > 0 ? port : DEFAULT_PORT;
 }
 
 function currentToken() {
