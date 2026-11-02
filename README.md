@@ -1,5 +1,10 @@
 # tutor-api
 
+```
+https://github.com/Thomas-key/dsh-agent-code-tutor
+```
+以上是dsh侧的客户端插件。
+
 把编辑器暴露成 **agent 可调用的 API**。任何 agent(DSH、Codex、Claude Code、自己写的脚本)
 都能接入 —— 这个项目本身**不认识任何 agent**。
 
