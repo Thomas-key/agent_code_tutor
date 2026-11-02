@@ -1,10 +1,75 @@
 {
   "name": "editor-api",
-  "version": "0.1.0",
-  "private": true,
+  "displayName": "Editor API",
   "description": "把编辑器暴露成 agent 可调用的 JSONL API —— 与具体 agent 实现无关",
-  "main": "src/dev-server.js",
-  "scripts": {
-    "dev": "node src/dev-server.js"
+  "version": "0.1.0",
+  "publisher": "illusion",
+  "private": true,
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "editorApi.confirm",
+        "title": "Editor API: 继续(看完了)"
+      },
+      {
+        "command": "editorApi.abort",
+        "title": "Editor API: 暂停(撤回这一拍)"
+      },
+      {
+        "command": "editorApi.ask",
+        "title": "Editor API: 问这一行"
+      },
+      {
+        "command": "editorApi.askFile",
+        "title": "Editor API: 问这个文件"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "editorApi.confirm",
+        "key": "ctrl+alt+enter",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "editorApi.abort",
+        "key": "ctrl+alt+backspace",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "editorApi.ask",
+        "key": "ctrl+alt+q",
+        "when": "editorTextFocus"
+      }
+    ],
+    "configuration": {
+      "title": "Editor API",
+      "properties": {
+        "editorApi.conversationToken": {
+          "type": "string",
+          "default": "",
+          "scope": "resource",
+          "markdownDescription": "会话身份。扩展启动时如果为空会自动生成一个并写回**工作区设置**。客户端 `hello` 时要带同一个值,推送才会发给它。改了这个,客户端那边也要跟着改。"
+        }
+      }
+    },
+    "menus": {
+      "editor/context": [
+        {
+          "command": "editorApi.ask",
+          "when": "editorTextFocus",
+          "group": "1_modification"
+        }
+      ]
+    }
   }
 }

@@ -1,0 +1,15 @@
+# 依赖
+# 这个项目零依赖,列在这里是防手滑
+node_modules/
+
+# 打包产物
+*.vsix
+
+# 本机状态
+# 扩展首次激活会把会话 token 写进这里 —— 那是本机的东西,不进版本库
+.vscode/settings.json
+
+# 系统/编辑器杂项
+.DS_Store
+Thumbs.db
+*.log

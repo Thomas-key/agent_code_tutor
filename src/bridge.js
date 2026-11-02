@@ -14,8 +14,8 @@ function createBridge({ port, dispatch }) {
 
   /** 一条连接从建立到断开的全部逻辑。Node 每接受一个连接就调一次。 */
   function handleConnection(socket) {
-    // 每个连接一份自己的状态:还没切完的字节、以及它自己的事件游标。
-    const session = { socket, cursor: 0, buffer: '' };
+    // 每个连接一份自己的状态:还没切完的字节。(事件是全局待办,不需要按连接记游标)
+    const session = { socket, buffer: '' };
     sessions.add(session);
     // 明确按 utf8 解码。不设的话拿到的是 Buffer,一个中文字被切在两个 chunk 之间就废了。
     socket.setEncoding('utf8');
@@ -76,14 +76,31 @@ function createBridge({ port, dispatch }) {
   }
 
   return {
-    /** 开始监听;返回真实端口(port=0 时由内核分配,测试用)。 */
-    listen() {
+    /**
+     * 开始监听。EADDRINUSE 会重试几次 —— 最常见的原因是上一个扩展宿主还没退干净,
+     * 端口短暂被占。其它错误(没权限之类)立刻失败,重试也没用。
+     */
+    listen({ attempts = 5, delayMs = 300 } = {}) {
       return new Promise((resolve, reject) => {
-        server.once('error', reject);
-        server.listen(port, '127.0.0.1', () => {
-          server.off('error', reject);
-          resolve(server.address().port);
-        });
+        let left = attempts;
+        const attempt = () => {
+          const onError = (error) => {
+            server.off('listening', onListening);
+            if (error.code === 'EADDRINUSE' && --left > 0) {
+              setTimeout(attempt, delayMs);
+              return;
+            }
+            reject(error);
+          };
+          const onListening = () => {
+            server.off('error', onError);
+            resolve(server.address().port);
+          };
+          server.once('error', onError);
+          server.once('listening', onListening);
+          server.listen(port, '127.0.0.1');
+        };
+        attempt();
       });
     },
 
@@ -91,6 +108,22 @@ function createBridge({ port, dispatch }) {
     broadcast(message) {
       for (const session of sessions) send(session, message);
       return sessions.size;
+    },
+
+    /**
+     * 只发给"最后一次请求带了这个 token"的连接。
+     *
+     * 为什么不按连接鉴权:token 是跟着每个请求走的,连接本身不绑定身份 ——
+     * 但每个人最后用过的 token,就是它现在的身份。
+     */
+    broadcastTo(token, message) {
+      let sent = 0;
+      for (const session of sessions) {
+        if (session.lastToken !== token) continue;
+        send(session, message);
+        sent += 1;
+      }
+      return sent;
     },
 
     /** 关掉:先断连接再关监听,否则 server.close 会一直等它们。 */
