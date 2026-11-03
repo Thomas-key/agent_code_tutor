@@ -1,10 +1,5 @@
 # tutor-api
 
-```
-https://github.com/Thomas-key/dsh-agent-code-tutor
-```
-以上是dsh侧的客户端插件。
-
 把编辑器暴露成 **agent 可调用的 API**。任何 agent(DSH、Codex、Claude Code、自己写的脚本)
 都能接入 —— 这个项目本身**不认识任何 agent**。
 
@@ -15,6 +10,43 @@ agent 客户端 ──(JSONL over TCP)──▶ tutor-api ──▶ 编辑器
 ```
 
 完整协议见 **[API.md](API.md)**。
+
+## 安装
+
+编辑器这一侧**只装你这个扩展就够了**,它不认识 DSH,也不认识任何 agent。
+
+去 [Releases](https://github.com/Thomas-key/agent_code_tutor/releases) 下最新的
+`agent-code-tutor-x.y.z.vsix`,然后:
+
+```bash
+code --install-extension agent-code-tutor-x.y.z.vsix
+# code-server 用户用 code-server --install-extension ...
+```
+
+或者图形界面:扩展面板右上角 `···` → **从 VSIX 安装**。
+
+> **扩展 ID 是 `illusion.agent-code-tutor`(带连字符)**。
+> Archive 里如果同时看到 `agent_code_tutor`(下划线)那个,是旧版,卸载掉 ——
+> 两个同时装会抢同一个端口,后装的那个静默失败。
+
+装完**重启窗口**。之后默认监听 `127.0.0.1:41890`。
+
+## 和 DSH 一起用
+
+需要另外装客户端插件([dsh-agent-code-tutor](https://github.com/Thomas-key/dsh-agent-code-tutor)):
+
+```bash
+dsh plugin add https://github.com/Thomas-key/dsh-agent-code-tutor
+```
+
+`dsh plugin add` 底层是 pnpm —— 参数会原样转发,所以也能直接给 pnpm 认得的形式。
+
+它通过 JSONL 连过来,把 `editor_*` 工具交给模型。**装完通常不用配置**:
+插件启动时会扫 cwd 及其直接子目录的 `.vscode/settings.json`,自己找到这个工作区
+的 token。找到多个不同的值就不猜,报错让你填。
+
+**这个扩展不依赖它** —— 换成 Codex、Claude Code 或者你自己写的脚本,
+读 [API.md](API.md) 一样能接。
 
 ## 它能做什么
 

@@ -4,6 +4,9 @@ node_modules/
 
 # 打包产物
 *.vsix
+# vsce 的 npm 缓存(跑 npx @vscode/vsce 时用 npm_config_cache 指到这里,
+# 因为家目录的 ~/.npm 在部分环境下写不进去)
+.vsce-cache/
 
 # 本机状态
 # 扩展首次激活会把会话 token 写进这里 —— 那是本机的东西,不进版本库

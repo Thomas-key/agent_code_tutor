@@ -1,0 +1,31 @@
+# vsce 只看这个文件,**不看 .gitignore**。
+# 没写完的后果:打包目录里的一切都会被收进去 —— npm 缓存、本机设置、测试产物。
+# (教训:第一次打包带进了 8304 个文件、47 MB,还有带着本机 token 的 settings.json)
+
+# 运行时真正需要的只有这些,其余全部排除
+*
+!package.json
+!README.md
+!API.md
+!extension.js
+!src/**
+
+# 上面 !src/** 已经要了全部源码,这里单独挡掉可能出现的散落文件
+src/**/*.test.js
+src/**/*.map
+
+# 构建/依赖产物
+node_modules/**
+.vsce-cache/**
+*.vsix
+
+# 本机的东西 —— settings.json 里有 conversationToken,绝不能进包
+.vscode/**
+.git/**
+.gitignore
+.gitattributes
+
+# 系统杂项
+.DS_Store
+Thumbs.db
+*.log
