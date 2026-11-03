@@ -15,9 +15,6 @@ const handoff = require('./handoff');
 /** 待发队列:每一项都是一个要推给 agent 的 message。 */
 const queue = [];
 
-/** 由 extension 注入:push(message) 推给客户端;abort() 撤回这一拍。 */
-let deps = { push: () => 0, abort: async () => {} };
-
 let askItem = null;
 let primaryItem = null;
 let secondaryItem = null;
@@ -85,10 +82,8 @@ function takeQueue() {
   return items;
 }
 
-/** 创建三个按钮。必须等 bridge 建好之后再调 —— 那时才知道往哪推。 */
-function create({ push, abort }) {
-  deps = { push, abort };
-
+/** 创建三个按钮。必须在 activate 里调(主题色和状态栏都已经可用)。 */
+function create() {
   askItem = make('$(comment-discussion) 询问 agent', 'tutorApi.askFile', '问这个文件');
   primaryItem = make('$(bell) 唤醒', 'tutorApi.primary', '唤醒 agent');
   secondaryItem = make('$(circle-slash) 取消', 'tutorApi.secondary', '没有攒着的东西可取消');

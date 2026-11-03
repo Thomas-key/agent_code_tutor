@@ -50,10 +50,7 @@ function activate(context) {
     }),
   });
 
-  statusbar.create({
-    push: (message) => (bridge ? bridge.broadcastTo(currentToken(), message) : 0),
-    abort: abortTurn,
-  });
+  statusbar.create();
 
   bridge
     .listen()
@@ -180,7 +177,9 @@ function primaryAction() {
   const pending = statusbar.takeQueue();
   const token = currentToken();
   for (const message of pending) {
-    if (bridge) bridge.broadcastTo(token, message);
+    // 带上本工作区的 token:DSH 那边可能同时绑着多个工作区,
+    // 只有它能说明"这条问话来自哪一块编辑器"。
+    if (bridge) bridge.broadcastTo(token, { ...message, token });
   }
 
   if (handoff.isWaiting()) {
@@ -190,7 +189,7 @@ function primaryAction() {
     statusbar.flash(`$(debug-continue) 继续(发出 ${pending.length} 条问话)`);
     log(`继续(发出 ${pending.length} 条问话)`);
   } else {
-    const sent = bridge ? bridge.broadcastTo(token, { event: 'confirm' }) : 0;
+    const sent = bridge ? bridge.broadcastTo(token, { event: 'confirm', token }) : 0;
     statusbar.flash(
       sent > 0 ? `$(bell) 已唤醒(发出 ${pending.length} 条问话)` : '$(warning) 没有客户端连着 —— 唤醒没发出去',
       3000,

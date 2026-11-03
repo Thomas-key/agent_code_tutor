@@ -304,10 +304,13 @@ token 一次性、60 秒过期、路径必须一致。**内容不用重发** —
 **没有 `id` 的消息就是推送。** 它不等回复,随时可能来:
 
 ```json
-{"event":"ask","file":"src/a.js","text":"这个文件是做什么的"}
-{"event":"ask","file":"src/a.js","line":5,"quote":"const a = 1;","text":"为什么这里要 import"}
-{"event":"confirm"}
+{"event":"ask","token":"e0d75dee","file":"src/a.js","text":"这个文件是做什么的"}
+{"event":"ask","token":"e0d75dee","file":"src/a.js","line":5,"quote":"const a = 1;","text":"为什么这里要 import"}
+{"event":"confirm","token":"e0d75dee"}
 ```
+
+**每条推送都带 `token`** —— 它说明这条问话来自**哪一块编辑器工作区**。一个客户端可能同时
+管着多个工作区,没有这个字段就无法把问话送回对应的会话。
 
 | `event` | 含义 |
 |---|---|
