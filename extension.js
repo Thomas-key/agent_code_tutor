@@ -184,6 +184,8 @@ function primaryAction() {
   }
 
   if (handoff.isWaiting()) {
+    // 继续 = 这一步读完了:把这一步的指(高亮/注解)擦掉,但代码不动
+    clearAll();
     pushEvent({ t: 'confirm' });
     statusbar.flash(`$(debug-continue) 继续(发出 ${pending.length} 条问话)`);
     log(`继续(发出 ${pending.length} 条问话)`);

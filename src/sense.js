@@ -108,6 +108,14 @@ let eventSeq = 0;
 const events = [];
 /** 谁在等同一条事件(交棒的 wait 靠它被唤醒)。 */
 const eventListeners = new Set();
+/**
+ * 我们自己的改动:按次数记账,而不是靠时间窗。
+ *
+ * 时间窗(200ms)在扩展宿主忙的时候会漏 —— 事件晚到就成了"用户改的"。
+ * 记账跟时间无关:登记一次,下次这个文件的 change 就被扣掉。
+ */
+const pendingSelfChanges = new Map(); // uri → 次数
+
 
 /** 自己造成动静的时间窗(见 markSelfAction)。 */
 let selfActionUntil = 0;
@@ -129,6 +137,16 @@ function markSelfAction(ms = 200) {
  * 想知道细节的客户端自己 read —— 这样事件永远很小,不会把缓冲撑爆。
  */
 function pushEvent(event) {
+  // 信号不是观测:confirm / abort 是用来叫醒 wait 的,不该出现在"用户做了什么"里
+  if (event.t === 'confirm' || event.t === 'abort') {
+    for (const listener of eventListeners) {
+      try {
+        listener(event);
+      } catch {}
+    }
+    return event;
+  }
+
   // 自己造成的动静不算"人做了什么"(见 markSelfAction)
   if (Date.now() < selfActionUntil) return null;
   const record = { seq: ++eventSeq, at: Date.now(), ...event };
@@ -169,6 +187,24 @@ function drainEvents() {
 }
 
 /**
+ * 登记"这个文件我马上要改一次"。
+ *
+ * 写操作在动手之前调它;对应的 change 事件到达时会被扣掉,不算人干的。
+ */
+function expectSelfChange(uri) {
+  pendingSelfChanges.set(uri, (pendingSelfChanges.get(uri) ?? 0) + 1);
+}
+
+/** 收账:这次 change 是我们登记过的吗?是就扣掉不记。 */
+function consumeSelfChange(uri) {
+  const left = pendingSelfChanges.get(uri);
+  if (!left) return false;
+  if (left === 1) pendingSelfChanges.delete(uri);
+  else pendingSelfChanges.set(uri, left - 1);
+  return true;
+}
+
+/**
  * 订阅"人做了什么"。返回退订函数。
  *
  * 交棒的 wait 靠它被唤醒:不用轮询,也不占事件循环。
@@ -190,7 +226,10 @@ function startWatching() {
   const fileOf = (doc) => (doc.uri.scheme === 'file' ? relative(doc.uri.fsPath) : null);
   const record = (t, doc) => {
     const file = fileOf(doc);
-    if (file) pushEvent({ t, file });
+    if (!file) return;
+    // 改动:先看是不是我们自己登记过的那一次
+    if (t === 'change' && consumeSelfChange(doc.uri.toString())) return;
+    pushEvent({ t, file });
   };
 
   return [
@@ -223,6 +262,8 @@ module.exports = {
   pushEvent,
   drainEvents,
   subscribe,
+  expectSelfChange,
+  consumeSelfChange,
   markSelfAction,
   viewFor,
   startWatching,

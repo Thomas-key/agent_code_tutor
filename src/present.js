@@ -1,6 +1,7 @@
 const vscode = require('vscode');
+
 const { openDocument, relative } = require('./document');
-const { markSelfAction } = require('./sense');
+const { markSelfAction, expectSelfChange } = require('./sense');
 
 /**
  * 展示层:高亮与注解。
@@ -87,6 +88,7 @@ function markChanged(editor, ranges, snapshot) {
     uri: editor.document.uri.toString(),
     before: snapshot?.before ?? null,
     after: snapshot?.after ?? null,
+    created: snapshot?.created === true,
   };
 }
 
@@ -101,7 +103,8 @@ function markChanged(editor, ranges, snapshot) {
 async function revertLastWrite() {
   for (const entry of state.values()) {
     const changed = entry.changed;
-    if (!changed?.before || !changed?.after) continue;
+    // 注意是 typeof,不是真值判断:新建文件的 before 就是空字符串,而 '' 是 falsy
+    if (!changed || typeof changed.before !== 'string' || typeof changed.after !== 'string') continue;
 
     const doc = vscode.workspace.textDocuments.find((d) => d.uri.toString() === changed.uri);
     if (!doc) continue;
@@ -109,7 +112,20 @@ async function revertLastWrite() {
     const current = doc.getText();
     if (current !== changed.after) return false; // 人动过,不撤
 
+    // 这一拍"新建"的文件:撤回 = 删掉它,而不是把内容清空
+    // (磁盘上很可能已经被自动保存写过了,清空会留下一份空文件)
+    if (changed.created) {
+      try {
+        await vscode.workspace.fs.delete(doc.uri, { useTrash: false });
+        entry.changed = null;
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
     markSelfAction(); // 撤回也是我们干的,别记成"人改的"
+    expectSelfChange(doc.uri.toString());
     const edit = new vscode.WorkspaceEdit();
     edit.replace(doc.uri, new vscode.Range(doc.positionAt(0), doc.positionAt(current.length)), changed.before);
     return vscode.workspace.applyEdit(edit);

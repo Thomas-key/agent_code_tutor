@@ -74,7 +74,7 @@ printf '{"id":1,"op":"ping"}\n' | nc 127.0.0.1 41890
 printf '{"id":1,"token":"test","op":"ping"}\n' | nc 127.0.0.1 41890
 ```
 
-token 在**工作区设置** `editorApi.conversationToken` 里(首次激活自动生成)。
+token 在**工作区设置** `tutorApi.conversationToken` 里(首次激活自动生成)。
 
 ## 约定
 

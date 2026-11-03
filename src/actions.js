@@ -1,6 +1,6 @@
 const vscode = require('vscode');
-const { openDocument, ensureDocument, tryOpenDocument, relative } = require('./document');
-const { markSelfAction } = require('./sense');
+const { openDocument, ensureDocument, tryOpenDocument, uriOf, relative } = require('./document');
+const { markSelfAction, expectSelfChange } = require('./sense');
 const { markChanged } = require('./present');
 
 /**
@@ -121,8 +121,10 @@ async function documentForWrite(op, request) {
   if (!confirm) return { needConfirm: stageCreate(op, source) };
 
   // 确认了才创建;建完必须打开 —— 写要求前台,而新文件必然不在前台
-  doc = await ensureDocument(file);
+  // 登记要在**创建之前** —— ensureDocument 一建文件就会触发 change 事件
   markSelfAction();
+  expectSelfChange(uriOf(file).toString());
+  doc = await ensureDocument(file);
   await vscode.window.showTextDocument(doc, { preview: false, preserveFocus: false });
   return { doc, source, created: true };
 }
@@ -169,12 +171,13 @@ async function insert(request) {
 
   const before = doc.getText();
   markSelfAction();
+  expectSelfChange(doc.uri.toString()); // 记一次账:马上会有一次 change 是我们干的
   const applied = await editor.edit((builder) => builder.insert(position, text));
   if (!applied) throw new Error('编辑器拒绝了这次修改(可能是只读文档)');
 
   // 让人看得见:把刚写入的那几行标绿(只留最后一次)
   const end = doc.positionAt(doc.offsetAt(position) + text.length);
-  markChanged(editor, [new vscode.Range(position, end)], { before, after: doc.getText() });
+  markChanged(editor, [new vscode.Range(position, end)], { before, after: doc.getText(), created });
 
   const lines = lineCountOf(text);
   const warning = lineWarning(lines);
@@ -222,22 +225,30 @@ async function replace(request) {
 
   const before = doc.getText();
   markSelfAction();
+  expectSelfChange(doc.uri.toString());
   const applied = await editor.edit((builder) => builder.replace(range, text));
   if (!applied) throw new Error('编辑器拒绝了这次修改(可能是只读文档)');
 
   const end = doc.positionAt(doc.offsetAt(range.start) + text.length);
-  markChanged(editor, [new vscode.Range(range.start, end)], { before, after: doc.getText() });
+  markChanged(editor, [new vscode.Range(range.start, end)], { before, after: doc.getText(), created });
 
   const lines = lineCountOf(text);
-  // 零长度范围 = 纯插入,一行都没删 —— 别让 replacedLines 说谎
-  const replacedLines = range.isEmpty ? 0 : range.end.line - range.start.line + 1;
+  // "换了第几行到第几行"要按**真正被覆盖的行**算:
+  //   · 零长度范围 = 纯插入,一行都没删
+  //   · 范围结束在"下一行的第 0 列"时,最后一行其实没被碰到(那是行尾换行)
+  const affectedTo = range.isEmpty
+    ? range.start.line
+    : range.end.character === 0
+      ? range.end.line - 1
+      : range.end.line;
+  const replacedLines = range.isEmpty ? 0 : Math.max(0, affectedTo - range.start.line + 1);
   const warning = lineWarning(lines);
   return {
     path: relative(doc.uri.fsPath),
     lines,
     replacedLines,
     from: { line: range.start.line + 1, character: range.start.character + 1 },
-    to: { line: range.end.line + 1, character: range.end.character + 1 },
+    to: { line: affectedTo + 1, character: range.end.character + 1 },
     version: doc.version,
     dirty: doc.isDirty,
     ...(created ? { created: true } : {}),
