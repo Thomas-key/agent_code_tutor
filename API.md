@@ -185,8 +185,12 @@ tutorApi.conversationToken
 ```json
 ← {"id":5,"ok":true,"result":{
      "path":"src/a.js","inserted":42,"lines":3,
-     "at":{"line":5,"character":3},"version":8,"dirty":true}}
+     "at":{"line":5,"character":3},"version":8,"dirty":true,
+     "written":"function foo() {\n  return 1;\n}\n"}}
 ```
+
+`written` 是**实际落下去的文本**(超过 40 行会截断并注明)。模型传过 `text`,
+但它看不到落下之后的样子 —— 尤其 `at:"cursor"` 时位置是编辑器决定的。
 
 **新文件要确认。** 文件不存在时不会创建,而是把内容暂存起来:
 
@@ -215,10 +219,15 @@ token 一次性、60 秒过期、路径必须一致。**内容不用重发** —
 ← {"id":8,"ok":true,"result":{
      "path":"src/a.js","lines":3,"replacedLines":1,
      "from":{"line":5,"character":1},"to":{"line":5,"character":20},
-     "version":9,"dirty":true}}
+     "version":9,"dirty":true,
+     "removed":"const a = 1;\n",
+     "written":"const a = 2;\nconst b = 3;\nconst c = 4;\n"}}
 ```
 
 `replacedLines` 是**被替换掉的行数** —— 零长度范围(纯插入)时是 `0`。
+
+`removed` 是**被换掉的旧文本**(超过 40 行截断)。它排在模型读之前就取好了 ——
+改完之后那个位置已经是新内容,再读就不是"被换掉的东西"了。
 
 ### `save`
 
@@ -242,10 +251,16 @@ token 一次性、60 秒过期、路径必须一致。**内容不用重发** —
 ```json
 → {"id":10,"token":"test","op":"highlight","file":"src/a.js",
    "ranges":[{"fromLine":1,"toLine":3},{"fromLine":20,"toLine":22}]}
-← {"id":10,"ok":true,"result":{"path":"src/a.js","ranges":2}}
+← {"id":10,"ok":true,"result":{
+     "path":"src/a.js","ranges":2,
+     "segments":[{"from":1,"to":3,"code":"const net = require('net');"},
+                 {"from":20,"to":22,"code":"function createBridge({ port, dispatch }) {"}]}}
 ```
 
 可以用 `{fromLine, toLine}`,也可以用 `{from, to}`。
+
+`ranges` 是**累计**高亮段数;`segments` 是**这一次**标的每一段,带首行源码 ——
+模型指完要知道自己指的是哪一段代码,不能只靠记忆。
 
 ### `annotate`
 
@@ -253,8 +268,13 @@ token 一次性、60 秒过期、路径必须一致。**内容不用重发** —
 
 ```json
 → {"id":11,"token":"test","op":"annotate","file":"src/a.js","line":5,"text":"这里为什么用 Map?"}
-← {"id":11,"ok":true,"result":{"path":"src/a.js","line":5,"notes":1}}
+← {"id":11,"ok":true,"result":{
+     "path":"src/a.js","line":5,"notes":1,
+     "code":"const cache = new Map();"}}
 ```
+
+`code` 是**注解挂上去的那一行源码**。注解是"挂在某行上的一句话",
+只回行号等于没回 —— 模型要靠这行源码确认自己挂对了地方。
 
 ### `clear`
 
@@ -284,7 +304,9 @@ token 一次性、60 秒过期、路径必须一致。**内容不用重发** —
 ← {"id":13,"ok":true,"result":{
      "ended":"confirm",
      "event":{"seq":11,"t":"confirm","at":1793630844273},
-     "events":{"recent":[…],"older":{…}}}}
+     "events":{"recent":[…],"older":{…}},
+     "asks":[{"event":"ask","file":"src/a.js","line":5,
+              "quote":"const cache = new Map();","text":"这里为什么用 Map?"}]}}
 ```
 
 `ended` 的取值:
@@ -296,6 +318,15 @@ token 一次性、60 秒过期、路径必须一致。**内容不用重发** —
 | `timeout` | 等超时了 |
 
 **只被这两个信号唤醒。** 打字、切文件、保存都不算 —— 那些是噪声,不是"我看完了"。
+
+**`asks` 是等人期间用户问的话**,没有就是 `[]`。
+
+为什么它不走推送:推送会变成"开一个新回合",聊天里多出一条用户消息。
+可这一步工具还在等 —— 那条消息和这次写入对不上号。问话应该跟着这次
+`wait` 的返回值一起回去,由**这一拍**的调用方自己处理。
+
+`events` 和 `asks` 是两条不同的通道:`events` 是**聚合**的(同类只留计数,
+更早的折进 `older`),`asks` 必须**原样** —— 一聚合,问题本身就没了。
 
 ---
 
@@ -318,6 +349,10 @@ token 一次性、60 秒过期、路径必须一致。**内容不用重发** —
 | `confirm` | 人点了「唤醒」—— agent 当时没在等,所以用推送告诉它 |
 
 **只发给"最后一次请求用了同一个 token"的连接。** 多开时不会串台。
+
+> **有 agent 在 `wait` 时,`ask` 不会走推送** —— 它会进那次 `wait` 的
+> `asks` 返回值。推送只在"没人在等"时用,此时客户端会以"开一个新回合"
+> 的方式接住。两种情形形态不同:**返回给这一拍** vs **成为下一条用户消息**。
 
 ---
 

@@ -61,7 +61,15 @@ async function highlight(request) {
   entry.ranges.push(...ranges);
   editor.setDecorations(entry.highlight, entry.ranges);
 
-  return { path: relative(doc.uri.fsPath), ranges: entry.ranges.length };
+  // 每段的首行源码。模型指完得能看见"我指的是哪一段" ——
+  // 只回一个总数,它下一轮引用这段代码只能凭记忆,一错就错一片。
+  const segments = ranges.map((range) => ({
+    from: range.start.line + 1,
+    to: range.end.line + 1,
+    code: doc.lineAt(range.start.line).text,
+  }));
+
+  return { path: relative(doc.uri.fsPath), ranges: entry.ranges.length, segments };
 }
 
 /**
@@ -159,7 +167,14 @@ async function annotate(request) {
   editor.setDecorations(type, [{ range }]);
   entry.notes.push({ line, text, type });
 
-  return { path: relative(doc.uri.fsPath), line, notes: entry.notes.length };
+  return {
+    path: relative(doc.uri.fsPath),
+    line,
+    notes: entry.notes.length,
+    // 注解是"挂在某一行上的一句话",只回行号等于没回 ——
+    // 模型要靠这行源码确认自己挂对了地方。
+    code: doc.lineAt(line - 1).text,
+  };
 }
 
 /**

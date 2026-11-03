@@ -2,7 +2,7 @@
   "name": "agent-code-tutor",
   "displayName": "Agent Code Tutor",
   "description": "把编辑器暴露成 agent 可调用的 JSONL API，让agent教你写代码。",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "publisher": "illusion",
   "repository": {
     "type": "git",

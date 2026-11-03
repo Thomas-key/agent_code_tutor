@@ -22,6 +22,32 @@ function isWaiting() {
   return waitingCount > 0;
 }
 
+/**
+ * 等人期间用户问的话。
+ *
+ * 为什么单开一条通道:
+ *   · 不走事件流 —— 事件流会按类型聚合成计数(`older: {ask: 2}`),内容会丢
+ *   · 不推给客户端开新回合 —— 那会变成聊天里的一条用户消息,
+ *     和"继续"抢同一个位置,看起来像 agent 收到了一条新消息
+ *
+ * 它该跟着 wait 的结果一起,回到正在执行的那个工具手里。
+ */
+let pendingAsks = [];
+
+/** 把这段时间攒的问话交给正在等的那个 wait。 */
+function addAsks(list) {
+  if (!Array.isArray(list) || list.length === 0) return;
+  pendingAsks.push(...list);
+}
+
+/** 取走问话(取走即清空,不会重复给)。 */
+function takeAsks() {
+  if (pendingAsks.length === 0) return [];
+  const items = pendingAsks;
+  pendingAsks = [];
+  return items;
+}
+
 /** 订阅等待状态变化,返回退订函数。 */
 function onWaitingChange(listener) {
   waitingListeners.add(listener);
@@ -57,7 +83,13 @@ async function wait(request) {
       // 先减计数再 resolve —— 外面在拿到结果之前就该看到"不在等了"
       setWaitingCount(waitingCount - 1);
       // 等到了,顺手把这段时间攒的事件一起带走
-      resolve({ ended, event: event ?? null, events: drainEvents() ?? { recent: [], older: {} } });
+      resolve({
+        ended,
+        event: event ?? null,
+        events: drainEvents() ?? { recent: [], older: {} },
+        // 等人期间问的话:和事件不同,这是**结构化内容**,必须原样交回
+        asks: takeAsks(),
+      });
     };
 
     unsubscribe = subscribe((event) => {
@@ -71,4 +103,4 @@ async function wait(request) {
   });
 }
 
-module.exports = { wait, isWaiting, onWaitingChange };
+module.exports = { wait, isWaiting, onWaitingChange, addAsks, takeAsks };

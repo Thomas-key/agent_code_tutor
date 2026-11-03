@@ -143,6 +143,24 @@ function lineCountOf(text) {
   return s === '' ? 0 : s.split('\n').length;
 }
 
+/** 回给模型的源码片段上限。超了就截断 —— 一次 replace 可能换掉整个文件。 */
+const MAX_SNIPPET_LINES = 40;
+
+/**
+ * 截一段源码给模型看。
+ *
+ * 为什么截断:返回里带源码是为了让模型**看见自己刚动了什么**,不是给它全文重读。
+ * 一次换掉 800 行原样塞回去,上下文就废了。截断处写明还有多少行,
+ * 模型就知道该自己 read,而不是以为那就是全部。
+ */
+function clipText(text) {
+  const s = String(text ?? '');
+  const lines = s.split('\n');
+  if (lines.length <= MAX_SNIPPET_LINES) return s;
+  const rest = lines.length - MAX_SNIPPET_LINES;
+  return `${lines.slice(0, MAX_SNIPPET_LINES).join('\n')}\n…(还有 ${rest} 行没显示,要全文就 read)`;
+}
+
 /**
  * 超过教学上限就返回一句提示,否则 null。
  *
@@ -188,6 +206,9 @@ async function insert(request) {
     at: { line: position.line + 1, character: position.character + 1 },
     version: doc.version,
     dirty: doc.isDirty,
+    // 实际写进去的文本。模型传过 text,但它看不到"落下之后"的样子 ——
+    // 尤其是 at=cursor 时,位置是编辑器决定的,不是它指定的。
+    written: clipText(text),
     ...(created ? { created: true } : {}),
     ...(warning ? { warning } : {}),
   };
@@ -224,6 +245,9 @@ async function replace(request) {
   const range = rangeOf(doc, source?.range);
 
   const before = doc.getText();
+  // 必须在 edit 之前取:改完之后 range 指向的位置已经是新内容了,
+  // 再读出来的不是"被换掉的东西"。
+  const removedText = doc.getText(range);
   markSelfAction();
   expectSelfChange(doc.uri.toString());
   const applied = await editor.edit((builder) => builder.replace(range, text));
@@ -251,6 +275,10 @@ async function replace(request) {
     to: { line: affectedTo + 1, character: range.end.character + 1 },
     version: doc.version,
     dirty: doc.isDirty,
+    // 换掉了什么,写进了什么。replacedLines 只是个数字 —— 模型要知道
+    // 原来那几行长什么样,才接得上"刚才那版为什么不对"。
+    removed: clipText(removedText),
+    written: clipText(text),
     ...(created ? { created: true } : {}),
     ...(warning ? { warning } : {}),
   };

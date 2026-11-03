@@ -176,19 +176,24 @@ async function askFile() {
 function primaryAction() {
   const pending = statusbar.takeQueue();
   const token = currentToken();
-  for (const message of pending) {
-    // 带上本工作区的 token:DSH 那边可能同时绑着多个工作区,
-    // 只有它能说明"这条问话来自哪一块编辑器"。
-    if (bridge) bridge.broadcastTo(token, { ...message, token });
-  }
 
   if (handoff.isWaiting()) {
+    // 有工具在等:问话**跟着这次等待一起交回给那个工具**,不推送。
+    // 推送会走客户端的"开新回合",结果是聊天里多一条用户消息,
+    // 而模型正在等工具返回 —— 它和这次写入对不上号。
+    handoff.addAsks(pending);
     // 继续 = 这一步读完了:把这一步的指(高亮/注解)擦掉,但代码不动
     clearAll();
     pushEvent({ t: 'confirm' });
-    statusbar.flash(`$(debug-continue) 继续(发出 ${pending.length} 条问话)`);
-    log(`继续(发出 ${pending.length} 条问话)`);
+    statusbar.flash(`$(debug-continue) 继续(带回 ${pending.length} 条问话)`);
+    log(`继续(带回 ${pending.length} 条问话)`);
   } else {
+    // 没人等,只能推给客户端:它会开一个新回合来接住这些问话。
+    for (const message of pending) {
+      // 带上本工作区的 token:DSH 那边可能同时绑着多个工作区,
+      // 只有它能说明"这条问话来自哪一块编辑器"。
+      if (bridge) bridge.broadcastTo(token, { ...message, token });
+    }
     const sent = bridge ? bridge.broadcastTo(token, { event: 'confirm', token }) : 0;
     statusbar.flash(
       sent > 0 ? `$(bell) 已唤醒(发出 ${pending.length} 条问话)` : '$(warning) 没有客户端连着 —— 唤醒没发出去',
@@ -231,6 +236,10 @@ function confirmTurn() {
  */
 async function abortTurn() {
   const reverted = await revertLastWrite();
+  // 暂停前问过的话也要跟着回去 —— 否则它们卡在队列里,
+  // 下次点"继续"才突然冒出来,和当时那一拍对不上。
+  const pending = statusbar.takeQueue();
+  handoff.addAsks(pending);
   clearAll();
   pushEvent({ t: 'abort' });
   log(reverted ? '暂停:已撤回这一拍' : '暂停:没有可撤回的写入');
